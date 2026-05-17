@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
 from ai import generate_blog
 from devto import post_to_platform
 import uvicorn
@@ -97,7 +98,7 @@ def health_check():
 # Blog Generator Endpoint
 # -----------------------------
 @app.post("/generate-blog")
-def create_blog(problem: Problem):
+async def create_blog(problem: Problem):
     """
     Accepts a LeetCode problem and:
     1. Generates a blog using Gemini AI
@@ -111,7 +112,7 @@ def create_blog(problem: Problem):
         }
 
     try:
-        blog_content = generate_blog(problem)
+        blog_content = await run_in_threadpool(generate_blog, problem)
 
     except Exception as e:
         return {
@@ -120,7 +121,7 @@ def create_blog(problem: Problem):
         }
 
     try:
-        response = post_to_platform(problem.title, blog_content)
+        response = await post_to_platform(problem.title, blog_content)
 
         return {
             "status": "success",
