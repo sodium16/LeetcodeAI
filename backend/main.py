@@ -15,10 +15,7 @@ from services.reminder_scheduler import start_scheduler
 
 load_dotenv()
 
-app = FastAPI(
-    title="LeetLog AI",
-    version="1.0.0"
-)
+app = FastAPI(title="LeetLog AI", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,17 +29,12 @@ app.add_middleware(
 # -----------------------------
 # Twilio Setup
 # -----------------------------
-twilio_client = Client(
-    os.getenv("TWILIO_ACCOUNT_SID"),
-    os.getenv("TWILIO_AUTH_TOKEN")
-)
+twilio_client = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
 
 # -----------------------------
 # MongoDB Setup
 # -----------------------------
-mongo_client = motor.motor_asyncio.AsyncIOMotorClient(
-    os.getenv("MONGODB_URI")
-)
+mongo_client = motor.motor_asyncio.AsyncIOMotorClient(os.getenv("MONGODB_URI"))
 
 db = mongo_client.leetcodeai
 
@@ -56,7 +48,7 @@ class Problem(BaseModel):
     code: str
     author: str = "Anonymous Developer"
     client_time: str = None  # Optional client time string
-    custom_prompt : str = None #custom_prompt for the user
+    custom_prompt: str = None  # custom_prompt for the user
     platforms: list[str] | None = None
     publish_as_draft: bool = False
     tags: list[str] | None = None
@@ -90,10 +82,7 @@ async def startup_event():
 # -----------------------------
 @app.get("/")
 def health_check():
-    return {
-        "status": "ok",
-        "message": "LeetLog AI backend is running."
-    }
+    return {"status": "ok", "message": "LeetLog AI backend is running."}
 
 
 # -----------------------------
@@ -109,23 +98,17 @@ async def create_blog(problem: Problem):
     if problem.custom_prompt and len(problem.custom_prompt.strip()) > 1000:
         raise HTTPException(
             status_code=400,
-            detail="Custom prompt exceeds maximum length of 1000 characters."
+            detail="Custom prompt exceeds maximum length of 1000 characters.",
         )
 
     if not problem.code or problem.code.strip() == "":
-        return {
-            "status": "error",
-            "message": "Code is empty, cannot generate blog."
-        }
+        return {"status": "error", "message": "Code is empty, cannot generate blog."}
 
     try:
         blog_content = await run_in_threadpool(generate_blog, problem)
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Gemini API failure: {str(e)}"
-        }
+        return {"status": "error", "message": f"Gemini API failure: {str(e)}"}
 
     try:
         platform_results = await publish_to_platforms(
@@ -150,14 +133,11 @@ async def create_blog(problem: Problem):
             "data": {
                 "blog_content": blog_content,
                 "platforms": platform_results,
-            }
+            },
         }
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Publishing failure: {str(e)}"
-        }
+        return {"status": "error", "message": f"Publishing failure: {str(e)}"}
 
 
 # -----------------------------
@@ -169,46 +149,38 @@ def reminder_health():
     Health check endpoint for reminder services.
     """
 
-    return {
-        "status": "active",
-        "message": "Reminder call infrastructure is running."
-    }
+    return {"status": "active", "message": "Reminder call infrastructure is running."}
 
 
 @app.post("/reminder/subscribe")
 async def subscribe(pref: ReminderPreference):
     await db.preferences.update_one(
-        {"whatsapp_number": pref.whatsapp_number},
-        {"$set": pref.dict()},
-        upsert=True
+        {"whatsapp_number": pref.whatsapp_number}, {"$set": pref.dict()}, upsert=True
     )
 
-    return {
-        "status": "success",
-        "message": "Subscribed!"
-    }
+    return {"status": "success", "message": "Subscribed!"}
 
 
 @app.post("/reminder/unsubscribe")
 async def unsubscribe(data: dict):
     await db.preferences.update_one(
-        {"whatsapp_number": data["whatsapp_number"]},
-        {"$set": {"is_opted_in": False}}
+        {"whatsapp_number": data["whatsapp_number"]}, {"$set": {"is_opted_in": False}}
     )
 
-    return {
-        "status": "success",
-        "message": "Unsubscribed!"
-    }
+    return {"status": "success", "message": "Unsubscribed!"}
 
 
 # -----------------------------
 # Run Server
 # -----------------------------
 if __name__ == "__main__":
+
+    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=True)
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=10000,
         reload=True
     )
+

@@ -1,4 +1,3 @@
-
 def generate_message(user_name: str):
     return f"""
     Hey {user_name},
