@@ -5,10 +5,7 @@ Tests use mock_gemini_client to avoid real Gemini API calls.
 
 
 class TestGenerateBlog:
-
-    def test_generate_blog_returns_string(
-        self, app_module, mock_gemini_client
-    ):
+    def test_generate_blog_returns_string(self, app_module, mock_gemini_client):
         """generate_blog returns a non-empty string."""
         from types import SimpleNamespace
 
@@ -25,9 +22,7 @@ class TestGenerateBlog:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    def test_generate_blog_calls_gemini_once(
-        self, app_module, mock_gemini_client
-    ):
+    def test_generate_blog_calls_gemini_once(self, app_module, mock_gemini_client):
         """generate_blog calls the Gemini model exactly once."""
         from types import SimpleNamespace
 

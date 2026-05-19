@@ -16,9 +16,13 @@
 
 ## 📖 What is LeetLog AI?
 
-**LeetLog AI** is a Chrome Extension + Python backend that watches your LeetCode session and, the moment you solve a problem, **automatically generates a professional, beginner-friendly blog post** using Google Gemini AI and **publishes it to your selected blogging platforms** on your behalf.
+**LeetLog AI** is a Chrome Extension with a Python FastAPI backend that automatically generates and publishes technical blog posts whenever you solve a LeetCode problem.
 
-No copy-paste. No formatting. Just solve, and let the AI do the rest.
+It extracts the problem statement, solution code, and author details directly from the LeetCode page, then uses Google Gemini AI to generate a beginner-friendly and structured blog post.
+
+The generated content can be published to platforms like Dev.to, Hashnode, Medium, or even a custom blog webhook — helping developers share their coding journey quickly and consistently.
+
+No manual copy-pasting or formatting required — just solve the problem and let the AI handle the rest.
 
 ---
 
@@ -147,8 +151,8 @@ The **LeetLog AI** extension icon will appear in your toolbar.
 LeetcodeAI/
 │
 ├── backend/                  # Python FastAPI server
-│   ├── main.py               # API routes (/generate-blog)
-│   ├── ai.py                 # Gemini AI blog generation logic
+│   ├── main.py               # FastAPI entry point and API routes
+│   ├── ai.py                 # Gemini AI prompt generation and response handling
 │   ├── devto.py              # Publishing provider registry and clients
 │   ├── requirements.txt      # Python dependencies
 │   └── .env                  # ⚠️ Your secrets (NOT committed)
@@ -156,7 +160,7 @@ LeetcodeAI/
 ├── extension/                # Chrome Extension (MV3)
 │   ├── manifest.json         # Extension config
 │   ├── content.js            # Scrapes LeetCode page data
-│   ├── background.js         # Service worker — calls backend
+│   ├── background.js         # Chrome extension service worker for backend communication
 │   ├── popup.html            # Extension popup UI
 │   └── popup.js              # Popup event logic
 │
@@ -173,7 +177,7 @@ Here is a checklist of features that would be incredibly useful for the communit
 
 - [ ] **WhatsApp Reminder Service**: Send automated daily reminders to solve LeetCode problems using the **Twilio API**.
 - [ ] **Automated Call Alerts**: Trigger automated phone calls using **ElevenLabs** and Twilio if a user hasn't solved their daily problem by a specific time.
-- [x] **Multi-platform Publishing**: Add support for publishing to Medium, Hashnode, or an existing personal blog/website.
+- [x] **Multi-platform Publishing**: Support publishing generated blogs to Dev.to, Medium, Hashnode, and custom personal blog webhooks.
 - [ ] **Customizable Prompts**: Allow users to configure the prompt used by Gemini so they can customize the tone and style of the generated blog post.
 - [ ] **Support for Other Coding Platforms**: Extend support to platforms like HackerRank, Codeforces, or GeeksforGeeks.
 - [ ] **Dashboard/Stats Page**: Create a simple dashboard to track the number of problems solved, posts published, and consistency streaks.
@@ -196,7 +200,7 @@ The backend can be deployed for free on [Render](https://render.com/).
 
 ## 🤝 Contributing
 
-We ❤️ contributions! LeetLog AI is part of **GSSoC 2026** and welcomes developers of all experience levels.
+We ❤️ contributions! LeetLog AI is part of **GSSoC 2026** and welcomes contributors of all experience levels, including beginners who are getting started with open source.
 
 Please read our **[CONTRIBUTING.md](CONTRIBUTING.md)** for:
 - How to set up your development environment

@@ -105,13 +105,15 @@ def mock_post_to_platform(app_module, mocker):
         app_module,
         "publish_to_platforms",
         autospec=True,
-        return_value=[{
-            "platform": "devto",
-            "status": "success",
-            "url": "https://dev.to/mock-post",
-            "response": {"id": 123, "url": "https://dev.to/mock-post"}
-        }],
-        )
+        return_value=[
+            {
+                "platform": "devto",
+                "status": "success",
+                "url": "https://dev.to/mock-post",
+                "response": {"id": 123, "url": "https://dev.to/mock-post"},
+            }
+        ],
+    )
 
 
 @pytest.fixture
