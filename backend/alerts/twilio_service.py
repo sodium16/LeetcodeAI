@@ -42,7 +42,8 @@ def send_whatsapp_message(to_number: str, body: str):
     whatsapp_from = os.getenv("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
     
     formatted_to = to_number if to_number.startswith("whatsapp:") else f"whatsapp:{to_number}"
-    
+    formatted_from = twilio_number if twilio_number.startswith("whatsapp:") else f"whatsapp:{twilio_number}"
+
     message = client.messages.create(
         from_=whatsapp_from,
         body=body,
