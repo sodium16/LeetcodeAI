@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 from dotenv import load_dotenv
 
-from ai.blog_generator import generate_blog
-from ai.provider_manager import ProviderManager
+from ai_core.blog_generator import generate_blog
+from ai_core.provider_manager import ProviderManager
 
 load_dotenv()
 
