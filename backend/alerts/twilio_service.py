@@ -20,8 +20,13 @@ def make_call(to_number: str, audio_url: str = None, text_to_say: str = None):
     if audio_url:
         twiml = f"<Response><Play>{audio_url}</Play></Response>"
     else:
-        # Tweak spelling specifically for the robotic voice so it pronounces it natively
-        spoken_text = text_to_say.replace("Lakh", "Laakh").replace("krke", "karke").replace("chl", "chal")
+        # Add 'angry' tone using SSML prosody (faster, louder, lower pitch)
+        # And completely map the string to Devanagari for perfect Hindi pronunciation
+        if "6 Lakh" in text_to_say:
+            spoken_text = '<prosody rate="fast" volume="x-loud" pitch="low">छह लाख की मेहनत करके, पैंतीस लाख के सपने नहीं देखे जाते. डी एस ए सॉल्व कर चल!</prosody>'
+        else:
+            spoken_text = text_to_say.replace("Lakh", "Laakh").replace("krke", "karke").replace("chl", "chal")
+            
         twiml = f"<Response><Say voice='Polly.Aditi' language='hi-IN'>{spoken_text}</Say></Response>"
         
     call = client.calls.create(
