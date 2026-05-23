@@ -102,17 +102,17 @@ async def create_blog(problem: Problem):
     1. Generates a blog using Gemini AI
     2. Publishes it to one or more configured platforms
     """
-    
+
     # Check if the user has already published a successful blog for this problem
     existing_record = await db.problem_info.find_one({
         "title": problem.title,
         "author": problem.author,
         "status": "success"
     })
-    
+
     if existing_record:
         return {
-            "status": "error", 
+            "status": "error",
             "message": f"Solution for '{problem.title}' has already been published! Keep up the great streak!"
         }
 
@@ -293,8 +293,9 @@ def reminder_health():
 @app.get("/test-whatsapp")
 def test_whatsapp():
     try:
-        from alerts.twilio_service import send_whatsapp_message
         import os
+
+        from alerts.twilio_service import send_whatsapp_message
         phone = os.getenv("TEST_PHONE_NUMBER")
         if not phone:
             return {"status": "error", "message": "TEST_PHONE_NUMBER is not set in environment."}
@@ -306,34 +307,21 @@ def test_whatsapp():
 @app.get("/test-call")
 def test_call():
     try:
-        from alerts.elevenlabs_service import generate_audio, generate_message
-        from alerts.twilio_service import make_call
         import os
-        
-        message = generate_message("Vansh")
-        
-        try:
-            audio_file = generate_audio(message)
-            backend_url = os.getenv("BACKEND_URL", "https://leetcodeai-backend.onrender.com")
-            if backend_url.endswith("/"):
-                backend_url = backend_url[:-1]
-            audio_url = f"{backend_url}/{audio_file}"
-            
-            phone = os.getenv("TEST_PHONE_NUMBER")
-            if not phone:
-                return {"status": "error", "message": "TEST_PHONE_NUMBER is not set in environment."}
-                
-            sid = make_call(phone, audio_url=audio_url)
-            return {"status": "success", "sid": sid, "audio_url": audio_url, "message": "Call initiated successfully with ElevenLabs."}
-        except Exception as el_err:
-            print("ElevenLabs Error in Test Route:", el_err)
-            # Fallback to Twilio TTS
-            phone = os.getenv("TEST_PHONE_NUMBER")
-            if not phone:
-                return {"status": "error", "message": "TEST_PHONE_NUMBER is not set in environment."}
-                
-            sid = make_call(phone, text_to_say=message)
-            return {"status": "success", "sid": sid, "message": "ElevenLabs failed (Free Tier VPN block), but Twilio TTS call initiated successfully.", "elevenlabs_error": str(el_err)}
+
+        from alerts.elevenlabs_service import generate_audio
+        from alerts.twilio_service import make_call
+
+        message = "Hello Vansh, this is a test call from your LeetCode AI backend. Keep coding!"
+        audio_file = generate_audio(message)
+
+        backend_url = os.getenv("BACKEND_URL", "https://leetcodeai-backend.onrender.com")
+        if backend_url.endswith("/"):
+            backend_url = backend_url[:-1]
+
+        audio_url = f"{backend_url}/{audio_file}"
+        sid = make_call("+917819834452", audio_url)
+        return {"status": "success", "sid": sid, "audio_url": audio_url, "message": "Call initiated successfully."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

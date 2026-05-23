@@ -27,9 +27,15 @@ class FakePreferencesCollection:
         self.update_one = AsyncMock()
 
 
+class FakeProblemInfoCollection:
+    def __init__(self) -> None:
+        self.find_one = AsyncMock(return_value=None)
+
+
 class FakeDatabase:
     def __init__(self) -> None:
         self.preferences = FakePreferencesCollection()
+        self.problem_info = FakeProblemInfoCollection()
 
 
 class FakeMotorClient:
