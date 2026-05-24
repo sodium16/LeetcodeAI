@@ -150,6 +150,12 @@ class HashnodePublisher(BasePublisher):
             },
             platform="Hashnode",
         )
+
+        # FIX: GraphQL always returns HTTP 200 — errors live in the body
+        if response.get("errors"):
+            error_msg = response["errors"][0].get("message", "Unknown Hashnode GraphQL error")
+            raise PublisherError(f"Hashnode GraphQL error: {error_msg}")
+
         post = response.get("data", {}).get("publishPost", {}).get("post", {})
         return PublishResult(
             platform=self.platform,
