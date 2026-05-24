@@ -56,6 +56,7 @@ class Problem(BaseModel):
     author: str = "Anonymous Developer"
     client_time: str = None  # Optional client time string
     custom_prompt: str = None  # custom_prompt for the user
+    difficulty: str = "Unknown"  # difficulty level of the problem
     platforms: list[str] | None = None
     publish_as_draft: bool = False
     share_to_social: bool = True
