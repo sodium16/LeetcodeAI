@@ -166,122 +166,130 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
     });
 
-    statusEl.innerText =
-        "Publishing automation active";
-});
+    const generateBtn =
+        document.getElementById('generate-blog-btn');
+    const btnText =
+        document.getElementById('btn-text');
+    const btnSpinner =
+        document.getElementById('btn-spinner');
 
-// Generate button
-document.getElementById('generateBtn')
-.addEventListener('click', async () => {
+    generateBtn.addEventListener('click', async () => {
 
-    const statusEl =
-        document.getElementById('status');
+        const statusEl =
+            document.getElementById('status');
 
-    const btn =
-        document.getElementById('generateBtn');
+        generateBtn.disabled = true;
+        btnText.textContent = "Generating Blog...";
+        btnSpinner.style.display = "inline-block";
 
-    btn.disabled = true;
+        startProgress();
 
-    btn.disabled = true;
+        try {
 
-    startProgress();
+            const tabs =
+                await chrome.tabs.query({
+                    active: true,
+                    currentWindow: true
+                });
 
-    try {
+            const tab = tabs[0];
 
-        const tabs =
-            await chrome.tabs.query({
-                active: true,
-                currentWindow: true
-            });
+            const customPrompt =
+                document
+                    .getElementById('customPrompt')
+                    .value
+                    .trim();
 
-        const tab = tabs[0];
+            if (
+                !tab ||
+                !tab.url ||
+                !tab.url.includes(
+                    "leetcode.com/problems/"
+                )
+            ) {
 
-        const customPrompt =
-            document
-                .getElementById('customPrompt')
-                .value
-                .trim();
+                statusEl.innerText =
+                    "Please open a LeetCode problem page!";
 
-        if (
-            !tab ||
-            !tab.url ||
-            !tab.url.includes(
-                "leetcode.com/problems/"
-            )
-        ) {
+                statusEl.className =
+                    "error-status";
+
+                finishProgress(false);
+                generateBtn.disabled = false;
+                btnText.textContent = "Generate Blog";
+                btnSpinner.style.display = "none";
+
+                return;
+            }
+
+            try {
+
+                await chrome.tabs.sendMessage(
+                    tab.id,
+                    {
+                        type: 'MANUAL_TRIGGER',
+                        custom_prompt: customPrompt
+                    }
+                );
+
+            } catch (msgErr) {
+
+                console.log(
+                    "Re-injecting content script..."
+                );
+
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: ['content.js']
+                });
+
+                setTimeout(async () => {
+
+                    try {
+
+                        await chrome.tabs.sendMessage(
+                            tab.id,
+                            {
+                                type: 'MANUAL_TRIGGER'
+                            }
+                        );
+
+                    } catch (e2) {
+
+                        statusEl.innerText =
+                            "Error: Please refresh LeetCode page!";
+
+                        statusEl.className =
+                            "error-status";
+
+                        finishProgress(false);
+                        generateBtn.disabled = false;
+                        btnText.textContent = "Generate Blog";
+                        btnSpinner.style.display = "none";
+                    }
+
+                }, 500);
+            }
+
+        } catch (e) {
+
+            console.error("Popup Error:", e);
 
             statusEl.innerText =
-                "Please open a LeetCode problem page!";
+                "Error: " + e.message;
 
             statusEl.className =
                 "error-status";
 
             finishProgress(false);
-            btn.disabled = false;
-
-            return;
+            generateBtn.disabled = false;
+            btnText.textContent = "Generate Blog";
+            btnSpinner.style.display = "none";
         }
+    });
 
-        try {
-
-            await chrome.tabs.sendMessage(
-                tab.id,
-                {
-                    type: 'MANUAL_TRIGGER',
-                    custom_prompt: customPrompt
-                }
-            );
-
-        } catch (msgErr) {
-
-            console.log(
-                "Re-injecting content script..."
-            );
-
-            await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                files: ['content.js']
-            });
-
-            setTimeout(async () => {
-
-                try {
-
-                    await chrome.tabs.sendMessage(
-                        tab.id,
-                        {
-                            type: 'MANUAL_TRIGGER'
-                        }
-                    );
-
-                } catch (e2) {
-
-                    statusEl.innerText =
-                        "Error: Please refresh LeetCode page!";
-
-                    statusEl.className =
-                        "error-status";
-
-                    finishProgress(false);
-                    btn.disabled = false;
-                }
-
-            }, 500);
-        }
-
-    } catch (e) {
-
-        console.error("Popup Error:", e);
-
-        statusEl.innerText =
-            "Error: " + e.message;
-
-        statusEl.className =
-            "error-status";
-
-        finishProgress(false);
-        btn.disabled = false;
-    }
+    statusEl.innerText =
+        "Publishing automation active";
 });
 
 // Listen for blog ready event
@@ -327,8 +335,14 @@ chrome.runtime.onMessage.addListener((request) => {
 
                     finishProgress(true);
                     document
-                        .getElementById("generateBtn")
+                        .getElementById("generate-blog-btn")
                         .disabled = false;
+                    document
+                        .getElementById('btn-text')
+                        .textContent = "Generate Blog";
+                    document
+                        .getElementById('btn-spinner')
+                        .style.display = "none";
                 }
         });
     }
@@ -342,7 +356,7 @@ chrome.runtime.onMessage.addListener(
         document.getElementById('status');
 
     const btn =
-        document.getElementById('generateBtn');
+        document.getElementById('generate-blog-btn');
 
     if (request.type === 'STATUS_UPDATE') {
 
@@ -383,44 +397,14 @@ chrome.runtime.onMessage.addListener(
 
             btn.disabled = false;
         }
+
+        document
+            .getElementById('btn-text')
+            .textContent = "Generate Blog";
+        document
+            .getElementById('btn-spinner')
+            .style.display = "none";
     }
-});
-
-// Dashboard button
-document.getElementById('dashboardBtn')
-.addEventListener('click', () => {
-
-    chrome.tabs.create({
-        url: chrome.runtime.getURL(
-            'dashboard.html'
-        )
-    });
-});
-
-// Export Markdown
-document
-.getElementById("exportMarkdownBtn")
-?.addEventListener("click", () => {
-
-    const blob = new Blob(
-        [generatedBlogMarkdown],
-        { type: "text/markdown" }
-    );
-
-    const url =
-        URL.createObjectURL(blob);
-
-    const a =
-        document.createElement("a");
-
-    a.href = url;
-
-    a.download =
-        `${generatedProblemTitle}.md`;
-
-    a.click();
-
-    URL.revokeObjectURL(url);
 });
 
 // Export HTML

@@ -79,6 +79,14 @@
             box-shadow: none;
             transform: none;
         }
+        .spinner {
+            margin-left: 8px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         
         #status { 
             margin-top: 18px; 
@@ -170,7 +178,10 @@
         </label>
     </fieldset>
     
-    <button id="generateBtn">Generate Blog</button>
+    <button id="generate-blog-btn" class="btn-primary">
+      <span id="btn-text">Generate Blog</span>
+      <span id="btn-spinner" class="spinner" style="display: none;">⏳</span>
+    </button>
 
     <div id="previewSection"
      style="display:none; margin-top:16px;">
