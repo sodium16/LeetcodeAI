@@ -5,6 +5,7 @@ import motor.motor_asyncio
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -127,7 +128,8 @@ async def create_blog(problem: Problem):
         return {"status": "error", "message": "Code is empty, cannot generate blog."}
 
     try:
-        blog_content = generate_blog(problem)
+        blog_content = await run_in_threadpool(generate_blog, problem)
+
     except Exception as e:
         return {
                 "status": "error",
@@ -135,7 +137,7 @@ async def create_blog(problem: Problem):
             }
 
     try:
-        platform_results = publish_to_platforms(
+        platform_results = await publish_to_platforms(
             problem.title,
             blog_content,
             platforms=problem.platforms,
@@ -161,7 +163,6 @@ async def create_blog(problem: Problem):
             status=overall_status,
             author=problem.author,
         )
-
         await db.problem_info.update_one(
             {
                 "title": problem.title,
@@ -172,7 +173,6 @@ async def create_blog(problem: Problem):
             },
             upsert=True,
         )
-
     except Exception as e:
         print(f"Database logging failed: {e}")
 
