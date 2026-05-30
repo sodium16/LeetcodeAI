@@ -10,6 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from twilio.rest import Client
+from fastapi.responses import JSONResponse
+from pymongo.errors import PyMongoError
+import logging
+
+logger = logging.getLogger(__name__)
 
 from ai_core.blog_generator import generate_blog
 from ai import rate_code_efficiency
@@ -21,6 +26,18 @@ from social import share_to_platforms
 load_dotenv()
 
 app = FastAPI(title="LeetLog AI", version="1.0.0")
+
+@app.exception_handler(PyMongoError)
+async def mongodb_exception_handler(request, exc: PyMongoError):
+    logger.error(f"Database error encountered: {str(exc)}") 
+    
+    return JSONResponse(
+        status_code=503,
+        content={
+            "status": "error", 
+            "message": "Database connection failed. Please ensure MongoDB is running."
+        }
+    )
 
 app.add_middleware(
     CORSMiddleware,
