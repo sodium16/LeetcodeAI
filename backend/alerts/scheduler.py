@@ -1,6 +1,7 @@
-from services.reminder_scheduler import start_scheduler, BackgroundScheduler
 from time import timezone
+
 from alerts.progress_checker import check_unsolved_users
+from services.reminder_scheduler import BackgroundScheduler, start_scheduler
 
 scheduler = BackgroundScheduler()
 

@@ -6,8 +6,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 
 import motor.motor_asyncio
 import uvicorn
