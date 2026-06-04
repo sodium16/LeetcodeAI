@@ -4,8 +4,8 @@ import os
 
 import openai
 from dotenv import load_dotenv
-from fastapi import APIRouter, HTTPException
-import openai
+from fastapi import HTTPException
+from .base import AIProvider
 from openai import OpenAI
 
 load_dotenv()
@@ -126,52 +126,52 @@ class OpenAIProvider(AIProvider):
             )
             last_error = Exception(f"Empty response from {model_name}")
 
-# This keeps the incoming error handler from the main branch intact
         raise last_error or Exception("All configured OpenAI models failed")
 
-
-# Global tracking variable to lock execution per endpoint context
-is_processing_generation = False
-
-@router.post("/generate-blog")
-async def generate_blog(payload: dict):
-if self._lock.locked():
-        raise HTTPException(
-            status_code=429, 
-            detail="A blog generation request is already in progress. Please wait."
-        )
-
-    async with self._lock:
-        user_prompt = payload.get("prompt", "Write a technical blog post about solving LeetCode problems efficiently.")
-        model_name = payload.get("model", "gpt-4o")
-
-        try:
-            # Run the synchronous OpenAI SDK call inside a thread pool 
-            # to keep the FastAPI async event loop completely non-blocking
-            import asyncio
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self.client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are LeetLog AI, an expert technical writer and software engineer. Generate a structured, markdown-formatted blog post based on the problem description provided."
-                        },
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=0.7
-                )
+    async def generate_blog(self, payload: dict):
+        if self._lock.locked():
+            raise HTTPException(
+                status_code=429,
+                detail="A blog generation request is already in progress. Please wait."
             )
 
-            return {
-                "status": "success",
-                "message": "Blog created successfully",
-                "data": response.choices[0].message.content
-            }
+        async with self._lock:
+            user_prompt = payload.get(
+                "prompt",
+                "Write a technical blog post about solving LeetCode problems efficiently.",
+            )
+            model_name = payload.get("model", "gpt-4o")
 
-        except openai.OpenAIError as e:
-            raise HTTPException(status_code=502, detail=f"OpenAI service error: {str(e)}")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Unexpected internal error: {str(e)}")
+            try:
+                # Run the synchronous OpenAI SDK call inside a thread pool 
+                # to keep the FastAPI async event loop completely non-blocking
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.chat.completions.create(
+                        model=model_name,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are LeetLog AI, an expert technical writer and "
+                                    "software engineer. Generate a structured, markdown-formatted "
+                                    "blog post based on the problem description provided."
+                                ),
+                            },
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        temperature=0.7,
+                    )
+                )
+
+                return {
+                    "status": "success",
+                    "message": "Blog created successfully",
+                    "data": response.choices[0].message.content,
+                }
+
+            except openai.OpenAIError as e:
+                raise HTTPException(status_code=502, detail=f"OpenAI service error: {str(e)}")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Unexpected internal error: {str(e)}")
