@@ -403,20 +403,25 @@ async def create_blog(
 
     user_settings = await _settings_for_user(current_user["id"]) if current_user else {}
 
+```python
     try:
-        blog_content = await run_in_threadpool(generate_blog, problem, credentials=user_settings)
+        blog_content = await run_in_threadpool(
+            generate_blog,
+            problem,
+            credentials=user_settings,
+        )
     except Exception as e:
         return {"status": "error", "message": f"AI provider failure: {str(e)}"}
 
-  try:
-    suggested_tags = await run_in_threadpool(
-        generate_tags,
-        problem,
-        blog_content,
-        credentials=user_settings,
-    )
-except Exception:
-    suggested_tags = ""
+    try:
+        suggested_tags = await run_in_threadpool(
+            generate_tags,
+            problem,
+            blog_content,
+            credentials=user_settings,
+        )
+    except Exception:
+        suggested_tags = ""
 
     try:
         platform_results = await publish_to_platforms(
