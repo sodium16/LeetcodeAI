@@ -1,4 +1,5 @@
 import os
+import uuid
 
 from elevenlabs import VoiceSettings
 from elevenlabs.client import ElevenLabs
@@ -10,18 +11,20 @@ def get_elevenlabs_client():
         return None
     return ElevenLabs(api_key=api_key)
 
+
 def generate_message(user_name: str):
-    return "6 Lakh ki mehnat krke 35 Lakh ke sapne nhi dekhe jate, DSA Solve kar chl"
+    return f"Aye {user_name}! 6 Lakh ki mehnat krke 35 Lakh ke sapne nhi dekhe jate, DSA Solve kar chl"
+
 
 def generate_audio(text: str) -> str:
-    """Generates audio and saves it to static/reminder.mp3. Returns the file path."""
+    """Generates audio and saves it to a unique reminder file. Returns the file path."""
     client = get_elevenlabs_client()
     if not client:
         raise ValueError("ELEVENLABS_API_KEY is not set")
 
     # Resolve voice ID dynamically
     target_voice_name = "Anya"
-    selected_voice_id = "21m00Tcm4TlvDq8ikWAM" # Fallback Rachel
+    selected_voice_id = "21m00Tcm4TlvDq8ikWAM"  # Fallback Rachel
     try:
         voices = client.voices.get_all().voices
         for v in voices:
@@ -46,7 +49,8 @@ def generate_audio(text: str) -> str:
     )
 
     os.makedirs("static", exist_ok=True)
-    file_path = "static/reminder.mp3"
+    file_name = f"reminder_{uuid.uuid4().hex}.mp3"
+    file_path = os.path.join("static", file_name)
     with open(file_path, "wb") as f:
         for chunk in response:
             if chunk:

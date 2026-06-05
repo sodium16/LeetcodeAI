@@ -6,6 +6,8 @@
 
     let isProcessing = false;
     let hasGeneratedForAccepted = false;
+    let lastProblemTitle = ""; 
+    let lastUrl = location.href;
     // Auto-trigger debounce and dedupe helpers
     let autoTriggerTimer = null;
     const AUTO_TRIGGER_DEBOUNCE_MS = 800; // wait for DOM to settle
@@ -48,6 +50,12 @@
                 }
             }
 
+            // Extract difficulty badge
+            const difficultyElement = document.querySelector('[class*="difficulty"]') ||
+                document.querySelector('[class*="Difficulty"]');
+            
+            const difficulty = difficultyElement ? difficultyElement.innerText.trim() : "Unknown";
+
             // Extract the user's LeetCode Username
             let author = "Anonymous LeetCoder";
             const allLinks = document.querySelectorAll('a[href^="/u/"]');
@@ -72,7 +80,7 @@
             // Send to background script
             chrome.runtime.sendMessage({
                 type: 'GENERATE_BLOG',
-                payload: { title, description, code, author, client_time, custom_prompt } // add custom_prompt
+                payload: { title, description, code, author, client_time, custom_prompt, difficulty } // add custom_prompt and difficulty
             });
 
 
@@ -133,6 +141,18 @@
 
     // Observer for automagic trigger on successful submission
     const observer = new MutationObserver(async (mutations) => {
+        // Reset the flag if the URL or problem title has changed (for SPA navigation)
+        const titleElement = document.querySelector('div[data-cy="question-title"]') ||
+            document.querySelector('.text-title-large') ||
+            document.querySelector('div.h-full.flex-col > div > div > span');
+        const currentTitle = titleElement ? titleElement.innerText.trim() : "";
+
+        if (window.location.href !== lastUrl || (currentTitle && currentTitle !== lastProblemTitle)) {
+            lastUrl = window.location.href;
+            if (currentTitle) lastProblemTitle = currentTitle;
+            hasGeneratedForAccepted = false;
+        }
+
         const resultElement = document.querySelector('[data-e2e-locator="submission-result"]');
         if (resultElement && resultElement.innerText.trim() === 'Accepted') {
 
