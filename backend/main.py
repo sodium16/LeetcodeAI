@@ -1,31 +1,28 @@
 import base64
-from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
 import json
 import logging
 import os
 import secrets
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Optional
 
+import httpx
 import motor.motor_asyncio
 import uvicorn
-import httpx
-
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
-from dotenv import load_dotenv
 from pydantic import BaseModel
+from pymongo.errors import PyMongoError
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from pymongo.errors import PyMongoError
 from twilio.rest import Client
 
 from ai import rate_code_efficiency
@@ -33,12 +30,13 @@ from ai import rate_code_efficiency
 # --- UPDATED AI PATH ---
 from ai_core.blog_generator import generate_blog, generate_tags
 from devto import publish_to_platforms
+from github_integration import push_solution_to_github
 from models.reminder import PublishRecord
-from services.reminder_scheduler import start_scheduler
-from services.complexity_analyzer import analyze_code
-from social import share_to_platforms
-from services.credential_service import resolve_user_credentials
 from models.user import PlatformCredential
+from services.complexity_analyzer import analyze_code
+from services.credential_service import resolve_user_credentials
+from services.reminder_scheduler import start_scheduler
+from social import share_to_platforms
 from utils.crypto import encrypt
 
 load_dotenv()
@@ -183,6 +181,12 @@ class AuthResponse(BaseModel):
 class IntegrationSettings(BaseModel):
     linkedin_access_token: str | None = None
     linkedin_person_urn: str | None = None
+    twitter_api_key: str | None = None
+    twitter_api_secret: str | None = None
+    twitter_access_token: str | None = None
+    twitter_access_secret: str | None = None
+    github_access_token: str | None = None
+    github_repo_name: str | None = None
     devto_api_key: str | None = None
     whatsapp_number: str | None = None
     timezone: str = "Asia/Kolkata"
@@ -192,6 +196,7 @@ class IntegrationSettings(BaseModel):
     gemini_api_key: str | None = None
     openai_api_key: str | None = None
     perplexity_api_key: str | None = None
+    grok_api_key: str | None = None
     publish_platforms: list[str] = ["devto"]
 
 
@@ -309,11 +314,22 @@ def _connected(settings_doc: dict[str, Any]) -> dict[str, bool]:
             settings_doc.get("linkedin_access_token")
             and settings_doc.get("linkedin_person_urn")
         ),
+        "twitter": bool(
+            settings_doc.get("twitter_api_key")
+            and settings_doc.get("twitter_api_secret")
+            and settings_doc.get("twitter_access_token")
+            and settings_doc.get("twitter_access_secret")
+        ),
+        "github": bool(
+            settings_doc.get("github_access_token")
+            and settings_doc.get("github_repo_name")
+        ),
         "whatsapp": bool(settings_doc.get("whatsapp_number")),
         "ai_provider": bool(
             settings_doc.get("gemini_api_key")
             or settings_doc.get("openai_api_key")
             or settings_doc.get("perplexity_api_key")
+            or settings_doc.get("grok_api_key")
         ),
     }
 
@@ -391,7 +407,7 @@ async def update_integration_settings(
     settings: IntegrationSettings,
     current_user: Annotated[dict[str, Any], Depends(get_current_user)],
 ):
-    allowed_providers = {"gemini", "openai", "perplexity"}
+    allowed_providers = {"gemini", "openai", "perplexity", "grok"}
     if settings.ai_provider not in allowed_providers:
         raise HTTPException(status_code=400, detail="Unsupported AI provider.")
 
@@ -441,7 +457,7 @@ def health_check():
 # Blog Generator Endpoint
 # -----------------------------
 @app.post("/generate-blog")
-@limiter.limit("5/minute")
+@limiter.limit("15/hour")
 async def create_blog(
     request: Request,
     problem: Problem,
@@ -490,14 +506,14 @@ async def create_blog(
     devto_creds = await resolve_user_credentials(db, user_id, "devto")
 
     try:
-        suggested_tags = await run_in_threadpool(
+        _ = await run_in_threadpool(
             generate_tags,
             problem,
             blog_content,
             credentials=user_settings,
         )
     except Exception:
-        suggested_tags = ""
+        pass
 
     try:
         platform_results = await publish_to_platforms(
@@ -552,6 +568,20 @@ async def create_blog(
                 )
             except Exception as e:
                 print(f"Social sharing failed: {e}")
+
+    # GitHub automatic commit integration
+    if successful and user_settings.get("github_access_token") and user_settings.get("github_repo_name"):
+        try:
+            await run_in_threadpool(
+                push_solution_to_github,
+                problem.title,
+                problem.code,
+                user_settings["github_access_token"],
+                user_settings["github_repo_name"]
+            )
+        except Exception as e:
+            print(f"GitHub push failed: {e}")
+
     return {
         "status": overall_status,
         "data": {
@@ -656,8 +686,15 @@ async def publish_blog(
 # Dashboard Endpoints
 # -----------------------------
 @app.get("/dashboard/stats")
-async def get_dashboard_stats(x_user_email: Optional[str] = Header(default=None)):
-    user_email = require_user(x_user_email)
+async def get_dashboard_stats(
+    x_user_email: Optional[str] = Header(default=None),
+    current_user: Annotated[dict[str, Any] | None, Depends(get_optional_user)] = None,
+):
+    if current_user:
+        user_email = current_user["email"]
+    else:
+        user_email = require_user(x_user_email)
+
     user_filter = {"user_email": user_email}
 
     try:
@@ -669,7 +706,7 @@ async def get_dashboard_stats(x_user_email: Optional[str] = Header(default=None)
             {"$group": {"_id": "$platforms", "count": {"$sum": 1}}},
         ]
         platform_cursor = db.problem_info.aggregate(pipeline_platforms)
-        platform_counts = {doc["_id"]: doc["count"] async for doc in platform_cursor}
+        platform_counts = [{"name": doc["_id"], "value": doc["count"]} async for doc in platform_cursor]
 
         seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         pipeline_week = [
@@ -684,6 +721,34 @@ async def get_dashboard_stats(x_user_email: Optional[str] = Header(default=None)
         ]
         week_cursor = db.problem_info.aggregate(pipeline_week)
         week_activity = {doc["_id"]: doc["count"] async for doc in week_cursor}
+
+        # All time daily activity for the heatmap
+        pipeline_all_time = [
+            {"$match": user_filter},
+            {
+                "$group": {
+                    "_id": {"$substr": ["$date", 0, 10]},
+                    "count": {"$sum": 1},
+                }
+            },
+            {"$sort": {"_id": 1}},
+        ]
+        all_time_cursor = db.problem_info.aggregate(pipeline_all_time)
+        daily_activity = [{"date": doc["_id"], "count": doc["count"], "level": min(doc["count"], 4)} async for doc in all_time_cursor]
+
+        # Calculate streak
+        current_streak = 0
+        if daily_activity:
+            dates_set = {doc["date"] for doc in daily_activity}
+            today = datetime.now(timezone.utc).date()
+
+            current_date = today
+            if current_date.isoformat() not in dates_set:
+                current_date = today - timedelta(days=1)
+
+            while current_date.isoformat() in dates_set:
+                current_streak += 1
+                current_date -= timedelta(days=1)
 
         recent_cursor = (
             db.problem_info.find(
@@ -706,6 +771,8 @@ async def get_dashboard_stats(x_user_email: Optional[str] = Header(default=None)
             "total_posts": total,
             "platform_counts": platform_counts,
             "week_activity": week_activity,
+            "daily_activity": daily_activity,
+            "current_streak": current_streak,
             "recent": recent,
         }
     except HTTPException:

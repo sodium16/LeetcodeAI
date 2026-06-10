@@ -211,10 +211,8 @@ async def enqueue_due_reminders(now_utc: datetime | None = None) -> dict:
     now_utc = now_utc or datetime.now(timezone.utc)
     due_users = await find_due_reminder_users(now_utc)
 
-    queued = 0
     skipped = 0
 
-    from tasks.reminder_tasks import check_user_progress_and_alert_task
 
     for user in due_users:
         user_id = user.get("user_id")
@@ -229,7 +227,7 @@ async def enqueue_due_reminders(now_utc: datetime | None = None) -> dict:
         # Check if there is a blog post created today
         # Date is stored as ISO format string, we can do a regex or range query
         # Since it's stored as '2026-05-23T...', we can do a prefix match
-        today_str = today.isoformat()
+        today_str = local_reminder_date(user, now_utc)
 
         solved_today_count = await db.problem_info.count_documents({
             "date": {"$regex": f"^{today_str}"}
@@ -274,6 +272,11 @@ async def enqueue_due_reminders(now_utc: datetime | None = None) -> dict:
                 print(f"Failed to check Leetcode for {lc_username}:", e)
 
         if not has_solved:
+            phone = user.get("whatsapp_number")
+            if not phone:
+                print(f"User {user_id} has no phone number, skipping.")
+                continue
+
             # Not solved today, send reminder!
             name = "Vansh" # Fallback or could add name to DB
             message = generate_message(name)
