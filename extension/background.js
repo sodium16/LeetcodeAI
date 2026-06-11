@@ -18,7 +18,7 @@ function authHeaders(userEmail, sessionToken) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'GENERATE_BLOG') {
-        const { title, description, code, author, client_time, custom_prompt, difficulty, language } = request.payload;
+        const { title, description, code, author, client_time, custom_prompt, difficulty, language, topics } = request.payload;
         chrome.storage.local.get({
             publishingPlatforms: ['devto'],
             publishAsDraft: false,
@@ -34,6 +34,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 headers: authHeaders(userEmail, sessionToken),
                 body: JSON.stringify({
                     title, description, code, author, client_time, custom_prompt, difficulty, language,
+                    tags: (topics && topics.length > 0) ? topics : null,
                     platforms: publishingPlatforms,
                     publish_as_draft: publishAsDraft
                 })
